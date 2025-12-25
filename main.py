@@ -42,11 +42,21 @@ async def _stream_completion(messages: List[Dict[str, Any]], model: str, data: C
     """Stream completion chunks back to Orca clients."""
     full_response = ""
     
+    # Log stream_url and stream_token if present
+    if hasattr(data, 'stream_url') and hasattr(data, 'stream_token'):
+        if data.stream_url and data.stream_token:
+            logger.info(f"Stream URL and token found: URL={data.stream_url[:50]}...")
+        else:
+            logger.warning("stream_url or stream_token is None/empty")
+    else:
+        logger.warning("stream_url or stream_token not found in ChatMessage")
+    
     # Get OpenAI API key from environment or variables
     api_key = get_variable_value(data.variables, "OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
     if not api_key:
         raise ValueError("OPENAI_API_KEY not found in environment or variables")
     
+    logger.info(f"Starting OpenAI streaming with model: {model}")
     openai_client = AsyncOpenAI(api_key=api_key)
     stream = await openai_client.chat.completions.create(
         model=model,
@@ -57,7 +67,9 @@ async def _stream_completion(messages: List[Dict[str, Any]], model: str, data: C
 
     # Create session for streaming
     session = orca.begin(data)
+    logger.info("Session created, starting to stream...")
     
+    chunk_count = 0
     try:
         async for chunk in stream:
             delta = chunk.choices[0].delta.content or ""
@@ -65,11 +77,18 @@ async def _stream_completion(messages: List[Dict[str, Any]], model: str, data: C
                 continue
 
             full_response += delta
+            chunk_count += 1
             # Stream chunk using session
             await asyncio.to_thread(session.stream, delta)
+            
+            if chunk_count % 10 == 0:
+                logger.debug(f"Streamed {chunk_count} chunks, total length: {len(full_response)}")
 
+        logger.info(f"Streaming completed: {chunk_count} chunks, {len(full_response)} total chars")
         # Complete response
-        await asyncio.to_thread(session.close)
+        result = await asyncio.to_thread(session.close)
+        logger.info("Session closed successfully")
+        return result
     except Exception as e:
         logger.exception("Error during streaming")
         await asyncio.to_thread(session.error, "An error occurred during streaming", exception=e)
@@ -82,6 +101,7 @@ async def process_message(data: ChatMessage):
     Entry point for Orca standard endpoint.
     Streams the SEO expert response back to clients.
     """
+    logger.info(f"Processing message: {data.message[:50] if data.message else 'None'}...")
     try:
         # Build chat history for the SEO persona
         messages: List[Dict[str, Any]] = [
@@ -90,7 +110,10 @@ async def process_message(data: ChatMessage):
         ]
 
         model = data.model or DEFAULT_MODEL
-        await _stream_completion(messages, model, data)
+        logger.info(f"Using model: {model}")
+        result = await _stream_completion(messages, model, data)
+        logger.info("Message processed successfully")
+        return result
 
     except Exception as exc:  # noqa: BLE001
         logger.exception("Failed to process message")
