@@ -1,0 +1,19 @@
+# Lambda-friendly image for Orca agent
+FROM public.ecr.aws/lambda/python:3.12
+
+# Set working directory (Lambda standard)
+WORKDIR ${LAMBDA_TASK_ROOT}
+
+# Upgrade pip first
+RUN pip install --no-cache-dir --upgrade pip
+
+# Copy and install Lambda-optimized requirements
+COPY requirements-lambda.txt .
+RUN pip install --no-cache-dir -r requirements-lambda.txt
+
+# Copy application code
+COPY lambda_handler.py main.py seo_agent.py ./
+
+# Set the Lambda handler entry point
+CMD ["lambda_handler.handler"]
+

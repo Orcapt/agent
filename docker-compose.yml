@@ -1,0 +1,27 @@
+services:
+  app:
+    image: orca_agent
+    container_name: orca_agent
+    build: .
+    volumes:
+      - .:/app
+    ports:
+      - 5001:80
+    env_file: .env
+    command: ["fastapi", "dev", "main.py", "--host", "0.0.0.0", "--port", "80"]
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.orca_agent.rule=Host(`${APP_DOMAIN}`)"
+      - "traefik.docker.network=traefik-network"
+    networks:
+      - postgres-network
+      - traefik-network
+      # - qdrant-network
+
+networks:
+  postgres-network:
+    external: true
+  traefik-network:
+    external: true
+  # qdrant-network:
+  #   external: true
