@@ -4,6 +4,9 @@ orcapt-sdk>=1.0.3
 # AWS SDK (REQUIRED for Lambda)
 boto3>=1.34.0
 
+# FastAPI (REQUIRED for web endpoints)
+fastapi>=0.115.0
+
 # FastAPI to Lambda adapter (REQUIRED for HTTP endpoints)
 mangum>=0.17.0
 
