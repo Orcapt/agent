@@ -1,5 +1,5 @@
 # Core Orca SDK (REQUIRED)
-orcapt-sdk>=1.0.3
+orcapt-sdk>=1.0.4
 
 # AWS SDK (REQUIRED for Lambda)
 boto3>=1.34.0
